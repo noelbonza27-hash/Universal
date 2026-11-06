@@ -1,0 +1,79 @@
+-- [[ UNIVERSAL COOLDOWN BYPASS & FAST SLAP HUB ]] --
+-- Optimised for execution in Delta Mobile/PC
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+-- Configuration Variables
+_G.FastSlapEnabled = true
+_G.SlapAuraEnabled = false
+_G.SlapDelay = 0.01 -- Lower = Faster. Set to 0 for instant/no cooldown.
+_G.AuraRange = 15    -- Maximum distance for the Slap Aura to lock on
+
+-- Helper function to automatically grab whatever glove/slap tool you have equipped
+local function getSlapTool()
+    local character = LocalPlayer.Character
+    if character then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then return tool end
+    end
+    return LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+end
+
+-- 1. NO COOLDOWN CORE / FAST SLAP LOOP
+-- Bypasses local tool animations by resetting or spamming the attack connection
+task.spawn(function()
+    while _G.FastSlapEnabled and task.wait(_G.SlapDelay) do
+        local tool = getSlapTool()
+        if tool then
+            -- Method A: Resets the tool's internal script cooldowns by forcing a state reload
+            local localScript = tool:FindFirstChildOfClass("LocalScript")
+            if localScript then
+                local clone = localScript:Clone()
+                localScript:Destroy()
+                clone.Parent = tool
+            end
+            
+            -- Method B: Forces the tool to activate immediately without waiting for animations
+            tool:Activate()
+        end
+    end
+end)
+
+-- 2. BONUS FEATURE: AUTOMATIC SLAP AURA
+-- Automatically detects nearby players and fires the weapon right at them
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if _G.SlapAuraEnabled then
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            
+            if root then
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        local enemyRoot = player.Character.HumanoidRootPart
+                        local distance = (root.Position - enemyRoot.Position).Magnitude
+                        
+                        -- If an enemy enters your range, auto-activate your tool
+                        if distance <= _G.AuraRange then
+                            local tool = getSlapTool()
+                            if tool then
+                                tool:Activate()
+                                -- Fires specific network triggers if the game utilizes standard remote frameworks
+                                local remote = tool:FindFirstChildOfClass("RemoteEvent") or tool:FindFirstChildOfClass("RemoteFunction")
+                                if remote then
+                                    remote:FireServer(player.Character)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+print("[Delta] Fast Slap & No Cooldown Framework Initialized.")
+print("To toggle Slap Aura on/off, type: _G.SlapAuraEnabled = true (or false) in your executor.")
